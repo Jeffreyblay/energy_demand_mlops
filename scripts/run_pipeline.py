@@ -18,6 +18,13 @@ Exits non-zero on any step failure so the Actions run shows red.
 from __future__ import annotations
 
 import sys
+from pathlib import Path
+
+# Running this file directly (`python scripts/run_pipeline.py`) puts
+# scripts/ on sys.path, not the repo root — so `src` isn't importable
+# unless we add the root ourselves (module mode `python -m` would do this
+# automatically, but the Actions workflow invokes it as a plain script).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import pandas as pd
 

@@ -47,3 +47,20 @@ export interface Decision {
 export interface HistoryResponse {
   decisions: Decision[];
 }
+
+export interface CoverageProperties {
+  code: string;
+  name: string;
+  radius_km: number;
+}
+
+export interface CoverageFeature {
+  type: "Feature";
+  geometry: { type: "Polygon"; coordinates: number[][][] };
+  properties: CoverageProperties;
+}
+
+export interface CoverageResponse {
+  type: "FeatureCollection";
+  features: CoverageFeature[];
+}

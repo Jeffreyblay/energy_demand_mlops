@@ -12,6 +12,7 @@ Run locally (against the Dockerized `db` service, exposed on host :5432):
 """
 from __future__ import annotations
 
+import json
 import os
 
 from fastapi import FastAPI, HTTPException
@@ -83,6 +84,98 @@ def regions() -> dict:
                     "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None,
                 },
             }
+            for row in rows
+        ],
+    }
+
+
+@app.get("/regions/coverage")
+def regions_coverage(radius_km: float = 80) -> dict:
+    """GeoJSON polygons — a circular buffer of `radius_km` around each region's
+    point, for the dashboard's "show coverage" toggle. Built with PostGIS'
+    geography-cast buffer (accurate on a sphere, unlike a planar buffer in
+    degrees) directly from region.lat/lon — no stored geometry column needed.
+    """
+    if radius_km <= 0:
+        raise HTTPException(400, "radius_km must be positive")
+
+    with get_engine().begin() as conn:
+        rows = conn.execute(
+            text(
+                """
+                SELECT code, name,
+                       ST_AsGeoJSON(
+                           ST_Buffer(
+                               ST_SetSRID(ST_MakePoint(lon, lat), 4326)::geography,
+                               :radius_m
+                           )::geometry
+                       ) AS polygon
+                FROM region
+                ORDER BY code
+                """
+            ),
+            {"radius_m": radius_km * 1000},
+        ).mappings().all()
+
+    return {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": json.loads(row["polygon"]),
+                "properties": {"code": row["code"], "name": row["name"], "radius_km": radius_km},
+            }
+            for row in rows
+        ],
+    }
+
+
+@app.get("/regions/nearby")
+def regions_nearby(region: str, radius_km: float = 300) -> dict:
+    """Other regions within `radius_km` of the given region's point, nearest
+    first — answers "which grids are close to this one"."""
+    if radius_km <= 0:
+        raise HTTPException(400, "radius_km must be positive")
+
+    region = region.upper()
+    with get_engine().begin() as conn:
+        origin = conn.execute(
+            text("SELECT lat, lon FROM region WHERE code = :code"), {"code": region}
+        ).mappings().first()
+        if origin is None:
+            raise HTTPException(404, f"unknown region '{region}'")
+
+        rows = conn.execute(
+            text(
+                """
+                SELECT code, name,
+                       ST_Distance(
+                           ST_SetSRID(ST_MakePoint(lon, lat), 4326)::geography,
+                           ST_SetSRID(ST_MakePoint(:origin_lon, :origin_lat), 4326)::geography
+                       ) / 1000 AS distance_km
+                FROM region
+                WHERE code != :code
+                  AND ST_DWithin(
+                          ST_SetSRID(ST_MakePoint(lon, lat), 4326)::geography,
+                          ST_SetSRID(ST_MakePoint(:origin_lon, :origin_lat), 4326)::geography,
+                          :radius_m
+                      )
+                ORDER BY distance_km
+                """
+            ),
+            {
+                "code": region,
+                "origin_lat": origin["lat"],
+                "origin_lon": origin["lon"],
+                "radius_m": radius_km * 1000,
+            },
+        ).mappings().all()
+
+    return {
+        "region": region,
+        "radius_km": radius_km,
+        "nearby": [
+            {"code": row["code"], "name": row["name"], "distance_km": round(row["distance_km"], 1)}
             for row in rows
         ],
     }

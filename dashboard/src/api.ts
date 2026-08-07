@@ -1,7 +1,7 @@
 // GridVision — thin fetch wrapper around the FastAPI backend.
 // Points at the local uvicorn dev server; swap via VITE_API_BASE for other envs.
 
-import type { RegionsResponse, ForecastResponse, HistoryResponse } from "./types";
+import type { RegionsResponse, ForecastResponse, HistoryResponse, CoverageResponse } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
 
@@ -20,3 +20,6 @@ export const fetchForecast = (region: string) =>
 
 export const fetchHistory = (limit = 20) =>
   getJSON<HistoryResponse>(`/history?limit=${limit}`);
+
+export const fetchCoverage = (radiusKm = 80) =>
+  getJSON<CoverageResponse>(`/regions/coverage?radius_km=${radiusKm}`);

@@ -233,9 +233,30 @@
   color: var(--text-muted);
 }
 
-.map-error {
+.map-coverage-toggle {
   position: absolute;
   top: 16px;
+  left: 16px;
+  background: rgba(252, 252, 251, 0.92);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 14px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.map-coverage-toggle:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.map-error {
+  position: absolute;
+  top: 68px;
   left: 16px;
   background: #fef2f2;
   color: #7f1d1d;

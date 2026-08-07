@@ -68,7 +68,11 @@ services:
       retries: 10
 
   db:
-    image: postgres:16
+    # postgis/postgis (not plain postgres) — src/db.py's init_schema() runs
+    # CREATE EXTENSION postgis for the coverage/nearby endpoints, which needs
+    # the extension binaries bundled in this image; the plain postgres image
+    # doesn't have them.
+    image: postgis/postgis:16-3.4
     environment:
       POSTGRES_USER: gridvision
       POSTGRES_PASSWORD: gridvision

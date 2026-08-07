@@ -11,11 +11,11 @@ import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { MapboxOverlay } from "@deck.gl/mapbox";
-import { ColumnLayer } from "@deck.gl/layers";
+import { ColumnLayer, GeoJsonLayer } from "@deck.gl/layers";
 import { HeatmapLayer } from "@deck.gl/aggregation-layers";
-import { fetchRegions } from "./api";
+import { fetchRegions, fetchCoverage } from "./api";
 import { colorForDemandRGB } from "./colorScale";
-import type { RegionFeature } from "./types";
+import type { RegionFeature, CoverageResponse } from "./types";
 
 const DARK_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 const ELEVATION_SCALE = 3;
@@ -40,10 +40,27 @@ export default function DemandMap({ onSelectRegion, selected }: Props) {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const overlayRef = useRef<MapboxOverlay | null>(null);
   const pointsRef = useRef<PointDatum[]>([]);
+  const coverageRef = useRef<CoverageResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; d: PointDatum } | null>(null);
+  const [showCoverage, setShowCoverage] = useState(false);
+  const [coverageLoading, setCoverageLoading] = useState(false);
 
-  const buildLayers = (points: PointDatum[], selectedCode: string | null) => [
+  const buildLayers = (points: PointDatum[], selectedCode: string | null, coverage: CoverageResponse | null) => [
+    ...(coverage
+      ? [
+          new GeoJsonLayer({
+            id: "coverage",
+            data: coverage as unknown as GeoJSON.FeatureCollection,
+            stroked: true,
+            filled: true,
+            getFillColor: [42, 120, 214, 25],
+            getLineColor: [109, 167, 236, 160],
+            lineWidthMinPixels: 1,
+            pickable: false,
+          }),
+        ]
+      : []),
     new HeatmapLayer<PointDatum>({
       id: "glow",
       data: points,
@@ -120,7 +137,10 @@ export default function DemandMap({ onSelectRegion, selected }: Props) {
         }));
         pointsRef.current = points;
 
-        const overlay = new MapboxOverlay({ interleaved: true, layers: buildLayers(points, selected) });
+        const overlay = new MapboxOverlay({
+          interleaved: true,
+          layers: buildLayers(points, selected, coverageRef.current),
+        });
         overlayRef.current = overlay;
         map.addControl(overlay);
       } catch (err) {
@@ -135,17 +155,47 @@ export default function DemandMap({ onSelectRegion, selected }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onSelectRegion]);
 
-  // Re-render layers (brighten the selected column) without refetching data.
+  // Re-render layers (brighten the selected column, toggle coverage) without
+  // refetching region data.
   useEffect(() => {
     if (overlayRef.current && pointsRef.current.length) {
-      overlayRef.current.setProps({ layers: buildLayers(pointsRef.current, selected) });
+      overlayRef.current.setProps({
+        layers: buildLayers(pointsRef.current, selected, showCoverage ? coverageRef.current : null),
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected]);
+  }, [selected, showCoverage]);
+
+  const toggleCoverage = async () => {
+    if (showCoverage) {
+      setShowCoverage(false);
+      return;
+    }
+    if (!coverageRef.current) {
+      setCoverageLoading(true);
+      try {
+        coverageRef.current = await fetchCoverage();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+        return;
+      } finally {
+        setCoverageLoading(false);
+      }
+    }
+    setShowCoverage(true);
+  };
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
+      <button
+        type="button"
+        className="map-coverage-toggle"
+        onClick={toggleCoverage}
+        disabled={coverageLoading}
+      >
+        {coverageLoading ? "Loading coverage…" : showCoverage ? "Hide grid coverage" : "Show grid coverage"}
+      </button>
       <div className="map-legend">
         <div className="map-legend-title">Peak forecast demand</div>
         <div className="map-legend-scale" />

@@ -31,6 +31,11 @@ def get_engine() -> Engine:
 
 
 SCHEMA_STATEMENTS = [
+    # Enables ST_MakePoint/ST_Buffer/ST_DWithin used by the coverage/nearby
+    # queries in api/main.py. region/forecast keep plain lat/lon floats —
+    # geometry is constructed inline from those at query time, so no
+    # migration/backfill is needed for existing rows.
+    "CREATE EXTENSION IF NOT EXISTS postgis",
     """
     CREATE TABLE IF NOT EXISTS region (
         code TEXT PRIMARY KEY,
