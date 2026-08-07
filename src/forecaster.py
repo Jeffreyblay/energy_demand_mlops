@@ -121,7 +121,11 @@ def generate() -> pd.DataFrame:
     preds = model.predict(future[FEATURE_COLS])
     out = future[["region", "ts", "temperature"]].copy()
     out["p10"], out["p50"], out["p90"] = preds["p10"], preds["p50"], preds["p90"]
-    out["model_version"] = prod_version
+    # str(), not the bare int model_store.production_version() returns —
+    # forecast/region_summary.model_version are TEXT columns, and assigning
+    # a Python int scalar into a pandas column broadcasts it as numpy.int64,
+    # which psycopg2 can't adapt directly.
+    out["model_version"] = str(prod_version)
     return out
 
 
