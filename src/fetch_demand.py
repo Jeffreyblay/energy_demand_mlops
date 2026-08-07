@@ -30,6 +30,27 @@ from src.config import (
 PAGE = 5000          # EIA max rows per request
 TIMEOUT = 60
 POLITE_SLEEP = 0.2   # seconds between requests
+MAX_RETRIES = 3
+RETRY_BACKOFF_S = 5  # doubles each retry: 5s, 10s, 20s
+
+
+def _get_with_retry(url: str, params: dict) -> requests.Response:
+    """GET with retry on transient network errors — GitHub Actions runners
+    occasionally see a slower/flakier path to external APIs than a local
+    machine does; retrying beats failing the whole run over one bad request."""
+    last_exc: Exception | None = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            r = requests.get(url, params=params, timeout=TIMEOUT)
+            r.raise_for_status()
+            return r
+        except requests.exceptions.RequestException as exc:
+            last_exc = exc
+            if attempt < MAX_RETRIES - 1:
+                wait = RETRY_BACKOFF_S * (2**attempt)
+                print(f"    retrying after {type(exc).__name__} (attempt {attempt + 1}/{MAX_RETRIES}, waiting {wait}s)")
+                time.sleep(wait)
+    raise last_exc  # type: ignore[misc]
 
 
 def _fetch_region(code: str, start: str, end: str) -> list[dict]:
@@ -50,8 +71,7 @@ def _fetch_region(code: str, start: str, end: str) -> list[dict]:
             "offset": offset,
             "length": PAGE,
         }
-        r = requests.get(EIA_BASE, params=params, timeout=TIMEOUT)
-        r.raise_for_status()
+        r = _get_with_retry(EIA_BASE, params)
         payload = r.json()["response"]
         batch = payload["data"]
         rows.extend(batch)

@@ -31,6 +31,8 @@ from src.config import (
 
 TIMEOUT = 60
 POLITE_SLEEP = 0.3
+MAX_RETRIES = 3
+RETRY_BACKOFF_S = 5  # doubles each retry: 5s, 10s, 20s
 
 
 def _fetch_region(lat: float, lon: float, start: str, end: str) -> pd.DataFrame:
@@ -42,8 +44,24 @@ def _fetch_region(lat: float, lon: float, start: str, end: str) -> pd.DataFrame:
         "hourly": "temperature_2m",
         "timezone": "UTC",
     }
-    r = requests.get(OPEN_METEO_ARCHIVE, params=params, timeout=TIMEOUT)
-    r.raise_for_status()
+    # GitHub Actions runners occasionally see a slow/flaky path to Open-Meteo
+    # that a local machine doesn't — retry transient network errors instead
+    # of failing the whole run over one region's request.
+    last_exc: Exception | None = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            r = requests.get(OPEN_METEO_ARCHIVE, params=params, timeout=TIMEOUT)
+            r.raise_for_status()
+            break
+        except (requests.exceptions.RequestException,) as exc:
+            last_exc = exc
+            if attempt < MAX_RETRIES - 1:
+                wait = RETRY_BACKOFF_S * (2**attempt)
+                print(f"    retrying after {type(exc).__name__} (attempt {attempt + 1}/{MAX_RETRIES}, waiting {wait}s)")
+                time.sleep(wait)
+    else:
+        raise last_exc  # type: ignore[misc]
+
     hourly = r.json()["hourly"]
     return pd.DataFrame(
         {
