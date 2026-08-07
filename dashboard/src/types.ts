@@ -64,3 +64,15 @@ export interface CoverageResponse {
   type: "FeatureCollection";
   features: CoverageFeature[];
 }
+
+export interface NearbyRegion {
+  code: string;
+  name: string;
+  distance_km: number;
+}
+
+export interface NearbyResponse {
+  region: string;
+  radius_km: number;
+  nearby: NearbyRegion[];
+}

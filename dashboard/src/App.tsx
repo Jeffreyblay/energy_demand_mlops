@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import DemandMap from "./DemandMap";
 import ForecastChart from "./ForecastChart";
 import PromotionTimeline from "./PromotionTimeline";
-import { fetchForecast, fetchRegions } from "./api";
+import { fetchForecast, fetchRegions, fetchNearby } from "./api";
 import { formatMW, formatDelta } from "./format";
 import { colorForDemandHex } from "./colorScale";
-import type { RegionFeature } from "./types";
+import type { RegionFeature, NearbyRegion } from "./types";
 import "./App.css";
 
 function StatTile({ label, value, delta }: { label: string; value: string; delta?: { text: string; positive: boolean } }) {
@@ -26,6 +26,7 @@ function App() {
   const [selected, setSelected] = useState<string | null>(null);
   const [region, setRegion] = useState<RegionFeature | null>(null);
   const [nextHourP50, setNextHourP50] = useState<number | null>(null);
+  const [nearby, setNearby] = useState<NearbyRegion[] | null>(null);
 
   useEffect(() => {
     if (!selected) return;
@@ -35,6 +36,7 @@ function App() {
     fetchForecast(selected).then((data) => {
       setNextHourP50(data.hours[0]?.p50 ?? null);
     });
+    fetchNearby(selected).then((data) => setNearby(data.nearby));
   }, [selected]);
 
   const delta = region?.properties.delta_vs_prior_run_mw ?? null;
@@ -82,6 +84,20 @@ function App() {
                   <StatTile label="Temperature" value={`${region.properties.temperature}°C`} />
                 </div>
                 <ForecastChart region={region.properties.code} />
+                {nearby && nearby.length > 0 && (
+                  <div className="nearby-regions">
+                    <div className="nearby-regions-title">Nearby grids</div>
+                    <ul>
+                      {nearby.map((n) => (
+                        <li key={n.code}>
+                          <button type="button" onClick={() => setSelected(n.code)}>
+                            {n.name} <span className="nearby-distance">{Math.round(n.distance_km)} km</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 <div className="sidebar-footnote">
                   Served by model v{region.properties.model_version} · updated{" "}
                   {region.properties.updated_at ? new Date(region.properties.updated_at).toLocaleString() : "—"}
