@@ -36,6 +36,7 @@ app.add_middleware(
 )
 
 
+# Health check: confirms the API is up and can reach the database.
 @app.get("/health")
 def health() -> dict:
     try:
@@ -47,6 +48,7 @@ def health() -> dict:
     return {"status": "ok" if db_ok else "degraded", "db": db_ok}
 
 
+# Returns every region as a GeoJSON point with its latest forecast summary.
 @app.get("/regions")
 def regions() -> dict:
     """GeoJSON FeatureCollection — one Point feature per balancing authority.
@@ -89,6 +91,7 @@ def regions() -> dict:
     }
 
 
+# Returns a circular buffer polygon (PostGIS ST_Buffer) around each region, for the coverage toggle.
 @app.get("/regions/coverage")
 def regions_coverage(radius_km: float = 80) -> dict:
     """GeoJSON polygons — a circular buffer of `radius_km` around each region's
@@ -130,6 +133,7 @@ def regions_coverage(radius_km: float = 80) -> dict:
     }
 
 
+# Returns other regions within radius_km of the given one, nearest first (PostGIS ST_DWithin).
 @app.get("/regions/nearby")
 def regions_nearby(region: str, radius_km: float = 300) -> dict:
     """Other regions within `radius_km` of the given region's point, nearest
@@ -181,6 +185,7 @@ def regions_nearby(region: str, radius_km: float = 300) -> dict:
     }
 
 
+# Returns the pre-computed hourly P10/P50/P90 forecast for one region.
 @app.get("/forecast")
 def forecast(region: str) -> dict:
     """Hourly P10/P50/P90 for the requested region's forecast horizon."""
@@ -216,6 +221,7 @@ def forecast(region: str) -> dict:
     }
 
 
+# Returns the most recent promotion/rejection gate decisions.
 @app.get("/history")
 def history(limit: int = 50) -> dict:
     """Recent promotion/rejection gate decisions — the audit trail."""

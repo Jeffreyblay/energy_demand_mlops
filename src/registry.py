@@ -32,21 +32,25 @@ from src.config import (
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
 
+# Returns a fresh MLflow tracking client bound to the configured tracking URI.
 def _client() -> MlflowClient:
     return MlflowClient(tracking_uri=MLFLOW_TRACKING_URI)
 
 
+# Returns all registered model versions, sorted ascending by version number.
 def list_versions() -> list:
     c = _client()
     versions = c.search_model_versions(f"name='{REGISTERED_MODEL_NAME}'")
     return sorted(versions, key=lambda v: int(v.version))
 
 
+# Returns the newest registered version, or None if no versions exist.
 def latest_version() -> str | None:
     versions = list_versions()
     return versions[-1].version if versions else None
 
 
+# Returns the version currently aliased `production` in MLflow, or None if unset.
 def production_version() -> str | None:
     """Version currently aliased `production`, or None if unset."""
     try:
@@ -56,6 +60,7 @@ def production_version() -> str | None:
         return None
 
 
+# Aliases the given model version as `production` in the MLflow registry.
 def set_production(version: str) -> None:
     _client().set_registered_model_alias(
         REGISTERED_MODEL_NAME, PRODUCTION_ALIAS, str(version)
@@ -63,12 +68,14 @@ def set_production(version: str) -> None:
     print(f"Set {REGISTERED_MODEL_NAME}@{PRODUCTION_ALIAS} → v{version}")
 
 
+# Loads the production-aliased model from the MLflow registry as an MLflow pyfunc.
 def load_production():
     """Load the production-aliased QuantileForecaster as an MLflow pyfunc."""
     uri = f"models:/{REGISTERED_MODEL_NAME}@{PRODUCTION_ALIAS}"
     return mlflow.pyfunc.load_model(uri)
 
 
+# Prints all registered versions and which one (if any) is production.
 def _status() -> None:
     versions = list_versions()
     prod = production_version()
@@ -83,6 +90,7 @@ def _status() -> None:
         print("No production alias set. Use --promote-latest.")
 
 
+# Loads the production model and prints sample predictions on recent feature rows.
 def _check() -> None:
     """Load production model and predict on the most recent feature rows."""
     prod = production_version()
@@ -98,6 +106,7 @@ def _check() -> None:
         print(out.to_string(index=False))
 
 
+# CLI entrypoint: promote/check/show status of the MLflow model registry.
 def main() -> None:
     parser = argparse.ArgumentParser(description="GridVision MLflow registry")
     parser.add_argument("--promote-latest", action="store_true")

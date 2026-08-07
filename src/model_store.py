@@ -42,10 +42,12 @@ class _QuantileModel:
     interface QuantileForecaster (src/model.py) exposed via MLflow pyfunc,
     minus MLflow."""
 
+    # Unpacks the joblib bundle into per-quantile boosters and the feature column list.
     def __init__(self, bundle: dict) -> None:
         self._models = {q: bundle[q] for q in QUANTILE_KEYS}
         self._features = bundle["features"]
 
+    # Predicts all three quantiles for the given input and returns them as a DataFrame.
     def predict(self, model_input: pd.DataFrame) -> pd.DataFrame:
         X = model_input[self._features]
         out = pd.DataFrame(index=model_input.index)
@@ -54,6 +56,7 @@ class _QuantileModel:
         return out
 
 
+# Reads the current production model version from metadata, or None if unset.
 def production_version() -> int | None:
     """Version currently in production, or None if none has been set yet."""
     if not PRODUCTION_METADATA_PATH.exists():
@@ -61,12 +64,14 @@ def production_version() -> int | None:
     return json.loads(PRODUCTION_METADATA_PATH.read_text())["version"]
 
 
+# Loads the current production quantile bundle from disk.
 def load_production() -> _QuantileModel:
     """Load the production quantile bundle."""
     bundle = joblib.load(PRODUCTION_MODEL_PATH)
     return _QuantileModel(bundle)
 
 
+# Copies the candidate model over production, bumps the version, and writes metadata.
 def set_production(candidate_model_path: Path, mape: float) -> int:
     """Promote the candidate at `candidate_model_path` to production.
 
@@ -94,6 +99,7 @@ def set_production(candidate_model_path: Path, mape: float) -> int:
     return version
 
 
+# Prints the current production model's version, MAPE, and promotion timestamp.
 def _status() -> None:
     version = production_version()
     if version is None:
@@ -105,6 +111,7 @@ def _status() -> None:
     print(f"  promoted_at : {meta['promoted_at']}")
 
 
+# Loads the production model and prints sample predictions on recent feature rows.
 def _check() -> None:
     """Load production model and predict on the most recent feature rows."""
     if production_version() is None:
@@ -119,6 +126,7 @@ def _check() -> None:
         print(out.to_string(index=False))
 
 
+# CLI entrypoint: shows production status, or runs a sample prediction check with --check.
 def main() -> None:
     parser = argparse.ArgumentParser(description="GridVision git-committed model store")
     parser.add_argument("--check", action="store_true")

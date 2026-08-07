@@ -27,6 +27,7 @@ COLUMNS = [
 ]
 
 
+# Inserts one promotion/rejection decision row into the audit log table.
 def append_record(record: dict) -> None:
     """Insert one decision record (missing keys stored as NULL)."""
     init_schema()
@@ -47,6 +48,7 @@ def append_record(record: dict) -> None:
         )
 
 
+# Reads the full promotion/rejection history, most recent first.
 def read_log() -> pd.DataFrame:
     # NOT pd.read_sql: pandas 2.3's SQLAlchemy-connectable detection needs
     # SQLAlchemy>=2.0, but Airflow's containers pin 1.4.x (its own metadata

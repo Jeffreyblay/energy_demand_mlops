@@ -98,6 +98,7 @@ HOLDOUT_DAYS = 7
 FORECAST_HORIZON_HOURS = 24
 
 
+# Returns the (start, end) date span covering the last `history_days`, ending yesterday.
 def date_range(history_days: int = HISTORY_DAYS) -> tuple[date, date]:
     """(start, end) covering the last `history_days`, ending yesterday.
 

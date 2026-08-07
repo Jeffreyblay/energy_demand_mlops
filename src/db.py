@@ -23,6 +23,7 @@ from src.config import POSTGRES_DSN, REGIONS
 _engine: Engine | None = None
 
 
+# Returns the module-level SQLAlchemy engine, creating it on first call.
 def get_engine() -> Engine:
     global _engine
     if _engine is None:
@@ -89,6 +90,7 @@ _UPSERT_REGION = text(
 )
 
 
+# Creates all tables/extensions if missing and upserts the static region reference data.
 def init_schema() -> None:
     """Create tables if missing and seed/refresh the static region table.
 

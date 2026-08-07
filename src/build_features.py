@@ -40,6 +40,7 @@ LAG_168 = 168
 ROLL_WINDOW = 168  # 7 days
 
 
+# Loads raw demand + weather parquet and inner-joins them on region/timestamp.
 def _load() -> pd.DataFrame:
     if not DEMAND_PARQUET.exists() or not WEATHER_PARQUET.exists():
         sys.exit("ERROR: run fetch_demand and fetch_weather first")
@@ -49,6 +50,7 @@ def _load() -> pd.DataFrame:
     return df.sort_values(["region", "ts"]).reset_index(drop=True)
 
 
+# Adds hour_of_day/day_of_week/is_holiday computed from each region's local timezone.
 def _add_calendar(df: pd.DataFrame) -> pd.DataFrame:
     """hour_of_day / day_of_week / is_holiday from each region's LOCAL time."""
     parts = []
@@ -67,6 +69,7 @@ def _add_calendar(df: pd.DataFrame) -> pd.DataFrame:
     return pd.concat(parts).sort_values(["region", "ts"]).reset_index(drop=True)
 
 
+# Adds the 24h/168h demand lag features and the trailing 7-day rolling mean, per region.
 def _add_lags(df: pd.DataFrame) -> pd.DataFrame:
     g = df.groupby("region", sort=False)["demand_mw"]
     df["demand_lag_24h"] = g.shift(LAG_24)
@@ -78,6 +81,7 @@ def _add_lags(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+# Cleans non-physical demand values, then builds and returns the full feature set.
 def build() -> pd.DataFrame:
     df = _load()
     n_raw = len(df)
@@ -105,6 +109,7 @@ def build() -> pd.DataFrame:
     return df
 
 
+# CLI entrypoint: builds the feature set, writes it to parquet, and prints a preview.
 def main() -> None:
     df = build()
     df.to_parquet(FEATURES_PARQUET, index=False)

@@ -23,6 +23,7 @@ import time
 from src import backtest, build_features, fetch_demand, fetch_weather, train
 
 
+# Runs one pipeline step with a labeled banner and timing.
 def _step(name: str, fn) -> None:
     print("\n" + "=" * 70)
     print(f"▶ {name}")
@@ -32,6 +33,7 @@ def _step(name: str, fn) -> None:
     print(f"✔ {name} done in {time.perf_counter() - t0:.1f}s")
 
 
+# CLI entrypoint: chains fetch/build/train/backtest with optional skip flags.
 def main() -> None:
     parser = argparse.ArgumentParser(description="GridVision Phase-1 pipeline")
     parser.add_argument("--skip-fetch", action="store_true",

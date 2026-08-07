@@ -33,6 +33,7 @@ from src.config import (
 MODEL_PATH = MODELS_DIR / "lgbm_quantile.joblib"
 
 
+# Splits data chronologically: older rows for training, most recent HOLDOUT_DAYS for testing.
 def time_split(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Train = older rows; test = most recent HOLDOUT_DAYS. No leakage."""
     cutoff = df["ts"].max() - pd.Timedelta(days=HOLDOUT_DAYS)
@@ -41,6 +42,7 @@ def time_split(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     return train, test
 
 
+# Trains one LightGBM regressor per quantile (P10/P50/P90) on the training data.
 def train_quantiles(train: pd.DataFrame) -> dict[str, LGBMRegressor]:
     models: dict[str, LGBMRegressor] = {}
     X = train[FEATURE_COLS]
@@ -52,12 +54,14 @@ def train_quantiles(train: pd.DataFrame) -> dict[str, LGBMRegressor]:
     return models
 
 
+# Scores the trained quantile models on the holdout set, per region and overall.
 def evaluate(models: dict, test: pd.DataFrame) -> pd.DataFrame:
     X = test[FEATURE_COLS]
     pred = test[["region", "ts", TARGET]].copy()
     for name in QUANTILES:
         pred[name] = models[name].predict(X)
 
+    # Computes MAPE, RMSE, and P10/P90 coverage for one group of rows.
     def _metrics(g: pd.DataFrame) -> pd.Series:
         inside = ((g[TARGET] >= g["p10"]) & (g[TARGET] <= g["p90"])).mean()
         return pd.Series(
@@ -77,6 +81,7 @@ def evaluate(models: dict, test: pd.DataFrame) -> pd.DataFrame:
     return pd.concat([per_region, overall.to_frame().T])
 
 
+# Runs the full train → evaluate → persist cycle and returns a summary dict.
 def run_training() -> dict:
     """Train, evaluate, persist. Returns a JSON-safe summary dict (used by
     both the CLI and the retrain pipeline script)."""
@@ -115,6 +120,7 @@ def run_training() -> dict:
     }
 
 
+# CLI entrypoint: runs training standalone.
 def main() -> None:
     run_training()
 

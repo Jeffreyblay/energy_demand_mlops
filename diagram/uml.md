@@ -8,6 +8,7 @@ UML diagrams included (structural + behavioral):
 
 | # | UML diagram | Kind | Answers |
 |---|---|---|---|
+| 0 | [System Overview](#0-system-overview--live-workflow-orchestration) | structural + behavioral | The whole live system in one picture |
 | 1 | [Use Case](#1-use-case-diagram) | behavioral | Who uses the system and for what |
 | 2 | [Activity](#2-activity-diagram--daily-retrain-workflow) | behavioral | The workflow / control flow of the DAG |
 | 3 | [Component](#3-component-diagram) | structural | How the services fit together |
@@ -16,6 +17,74 @@ UML diagrams included (structural + behavioral):
 | 6 | [Sequence — serving](#6-sequence-diagram--forecast-serving) | behavioral | Message order on an API request |
 | 7 | [State Machine](#7-state-machine-diagram--model-lifecycle) | behavioral | Lifecycle of a model version |
 | 8 | [Deployment](#8-deployment-diagram) | structural | Runtime nodes / Docker topology |
+
+---
+
+## 0. System Overview — live workflow orchestration
+
+One picture, the whole live system: every service, the daily automation loop,
+and the read path a user actually hits. This is the diagram to look at first;
+sections 1–8 zoom into individual pieces of it.
+
+```mermaid
+flowchart TB
+    subgraph EXT["External APIs"]
+        EIA[["EIA API v2<br/>hourly demand"]]
+        OM[["Open-Meteo<br/>archive + forecast temp"]]
+    end
+
+    subgraph GHA["GitHub Actions — cron 0 6 * * * UTC (retrain.yml)"]
+        direction TB
+        S1["1. fetch_demand + fetch_weather<br/>(parallel)"]
+        S2["2. build_features<br/>(~2yr rolling feature store)"]
+        S3["3. train<br/>candidate LightGBM P10/P50/P90"]
+        S4["4. backtest + gate<br/>candidate vs production vs baseline"]
+        S5{"beats production<br/>AND baseline?"}
+        S6["5a. promote:<br/>copy candidate → production"]
+        S7["5b. reject:<br/>keep existing production"]
+        S8["6. generate_forecast<br/>next 24h, every region"]
+        S1 --> S2 --> S3 --> S4 --> S5
+        S5 -->|yes| S6 --> S8
+        S5 -->|no| S7 --> S8
+    end
+
+    subgraph REPO["GitHub repo (git = model registry)"]
+        MS[("models/production/<br/>model.joblib + metadata.json")]
+    end
+
+    subgraph SUPA["Supabase Postgres + PostGIS"]
+        DB[("feature store · forecast ·<br/>region_summary · promotion_log")]
+    end
+
+    subgraph RENDER["Render — FastAPI (read-only)"]
+        API["/regions /regions/coverage<br/>/regions/nearby /forecast<br/>/history /health"]
+    end
+
+    subgraph PAGES["GitHub Pages — dashboard"]
+        WEB["React + MapLibre + deck.gl<br/>3D demand map, coverage toggle,<br/>nearby grids, promotion timeline"]
+    end
+
+    USER(["👤 Browser"])
+
+    EIA -->|"HTTP"| S1
+    OM -->|"HTTP"| S1
+    S6 -->|"git commit + push"| MS
+    S4 -->|"read current production"| MS
+    S8 -->|"read production model"| MS
+    S1 -.->|"features"| DB
+    S8 -->|"write forecast +<br/>region_summary"| DB
+    S6 -->|"write promotion_log"| DB
+    S7 -->|"write promotion_log"| DB
+    API -->|"SELECT (read-only)"| DB
+    WEB -->|"HTTPS GET"| API
+    USER -->|"loads"| WEB
+```
+
+> **Local dev / demo note**: the Docker Compose stack (Airflow, MLflow, a
+> local Postgres) still exists and works exactly as before — see the
+> [Deployment Diagram](#8-deployment-diagram) for that view. It is a
+> separate, parallel setup for local development and is **not** what
+> drives the live deployment pictured above.
 
 ---
 

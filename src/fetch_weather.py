@@ -35,6 +35,7 @@ MAX_RETRIES = 3
 RETRY_BACKOFF_S = 5  # doubles each retry: 5s, 10s, 20s
 
 
+# Fetches hourly archived temperature for one region's coordinates, with retry/backoff.
 def _fetch_region(lat: float, lon: float, start: str, end: str) -> pd.DataFrame:
     params = {
         "latitude": lat,
@@ -73,6 +74,7 @@ def _fetch_region(lat: float, lon: float, start: str, end: str) -> pd.DataFrame:
     )
 
 
+# Fetches temperature for every configured region and returns one tidy, deduped DataFrame.
 def fetch_all() -> pd.DataFrame:
     start_d, end_d = date_range()
     start, end = str(start_d), str(end_d)  # archive wants YYYY-MM-DD
@@ -102,6 +104,7 @@ def fetch_all() -> pd.DataFrame:
     )
 
 
+# CLI entrypoint: fetches weather for all regions and writes it to parquet.
 def main() -> None:
     df = fetch_all()
     df.to_parquet(WEATHER_PARQUET, index=False)

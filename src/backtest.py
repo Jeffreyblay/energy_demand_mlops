@@ -31,6 +31,7 @@ from src.config import (
 )
 
 
+# Trains a single P50 (median) LightGBM regressor on the given training slice.
 def _fit_p50(train: pd.DataFrame) -> LGBMRegressor:
     params = {**LGBM_PARAMS, "alpha": 0.50}
     model = LGBMRegressor(**params)
@@ -38,6 +39,7 @@ def _fit_p50(train: pd.DataFrame) -> LGBMRegressor:
     return model
 
 
+# Runs the expanding-window walk-forward backtest, retraining once per day in the holdout.
 def walk_forward(df: pd.DataFrame) -> pd.DataFrame:
     """Expanding-window daily backtest over the last HOLDOUT_DAYS."""
     df = df.sort_values("ts")
@@ -61,7 +63,9 @@ def walk_forward(df: pd.DataFrame) -> pd.DataFrame:
     return pd.concat(preds, ignore_index=True)
 
 
+# Aggregates per-day predictions into per-region + overall MAPE comparisons.
 def summarize(preds: pd.DataFrame) -> pd.DataFrame:
+    # Computes model vs naive MAPE (and whether the model wins) for one group.
     def _row(g: pd.DataFrame) -> pd.Series:
         model = mean_absolute_percentage_error(g[TARGET], g["model_pred"]) * 100
         naive = mean_absolute_percentage_error(g[TARGET], g["naive_pred"]) * 100
@@ -79,6 +83,7 @@ def summarize(preds: pd.DataFrame) -> pd.DataFrame:
     return pd.concat([per_region, overall.to_frame().T])
 
 
+# CLI entrypoint: runs the backtest end-to-end and prints the model-vs-baseline verdict.
 def main() -> None:
     if not FEATURES_PARQUET.exists():
         sys.exit("ERROR: run build_features first")

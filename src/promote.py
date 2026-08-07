@@ -37,6 +37,7 @@ class Decision:
         return self.promote
 
 
+# Raises if a MAPE value is missing, NaN, or non-positive.
 def _validate(name: str, value: float) -> None:
     if value is None or math.isnan(value):
         raise ValueError(f"{name} MAPE is missing/NaN")
@@ -44,6 +45,7 @@ def _validate(name: str, value: float) -> None:
         raise ValueError(f"{name} MAPE must be positive, got {value}")
 
 
+# Decides whether a candidate model should be promoted: must beat baseline, and production if one exists.
 def decide_promotion(
     candidate_mape: float,
     baseline_mape: float,

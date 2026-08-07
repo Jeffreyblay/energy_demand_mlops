@@ -20,11 +20,13 @@ QUANTILE_KEYS = ("p10", "p50", "p90")
 
 
 class QuantileForecaster(mlflow.pyfunc.PythonModel):
+    # Loads the joblib bundle of quantile boosters when MLflow initializes the model.
     def load_context(self, context) -> None:
         bundle = joblib.load(context.artifacts["bundle"])
         self._models = {q: bundle[q] for q in QUANTILE_KEYS}
         self._features = bundle["features"]
 
+    # Predicts all three quantiles for the given input and returns them as a DataFrame.
     def predict(self, context, model_input, params=None) -> pd.DataFrame:
         X = model_input[self._features]
         out = pd.DataFrame(index=model_input.index)

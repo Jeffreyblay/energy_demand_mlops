@@ -34,6 +34,7 @@ MAX_RETRIES = 3
 RETRY_BACKOFF_S = 5  # doubles each retry: 5s, 10s, 20s
 
 
+# GETs a URL with retry/backoff on transient network errors.
 def _get_with_retry(url: str, params: dict) -> requests.Response:
     """GET with retry on transient network errors — GitHub Actions runners
     occasionally see a slower/flakier path to external APIs than a local
@@ -53,6 +54,7 @@ def _get_with_retry(url: str, params: dict) -> requests.Response:
     raise last_exc  # type: ignore[misc]
 
 
+# Paginates through EIA's API to pull all hourly demand rows for one respondent/region.
 def _fetch_region(code: str, start: str, end: str) -> list[dict]:
     """Paginate through all hourly demand rows for one respondent."""
     rows: list[dict] = []
@@ -85,6 +87,7 @@ def _fetch_region(code: str, start: str, end: str) -> list[dict]:
     return rows
 
 
+# Fetches demand for every configured region and returns one tidy, deduped DataFrame.
 def fetch_all() -> pd.DataFrame:
     if not EIA_API_KEY:
         sys.exit("ERROR: EIA_API_KEY is empty — add it to .env")
@@ -127,6 +130,7 @@ def fetch_all() -> pd.DataFrame:
     return result
 
 
+# CLI entrypoint: fetches demand for all regions and writes it to parquet.
 def main() -> None:
     df = fetch_all()
     df.to_parquet(DEMAND_PARQUET, index=False)

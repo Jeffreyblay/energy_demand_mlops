@@ -41,6 +41,7 @@ from src import (
 from src.promote import decide_promotion
 
 
+# Runs the full fetch → train → gate → promote/reject → forecast pipeline sequentially.
 def main() -> None:
     print("=== fetch_demand ===")
     fetch_demand.main()

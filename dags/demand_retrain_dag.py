@@ -45,6 +45,7 @@ from src import (
 from src.promote import decide_promotion
 
 
+# Defines the daily retrain DAG: wires all tasks below into the graph shown in the module docstring.
 @dag(
     dag_id="demand_retrain_dag",
     schedule="0 6 * * *",  # 6am daily, after prior day's EIA data finalizes
@@ -55,31 +56,37 @@ from src.promote import decide_promotion
     doc_md=__doc__,
 )
 def demand_retrain_dag():
+    # Task: fetches the latest EIA hourly demand data.
     @task
     def fetch_demand_data() -> str:
         fetch_demand.main()
         return "ok"
 
+    # Task: fetches the latest Open-Meteo weather data.
     @task
     def fetch_weather_data() -> str:
         fetch_weather.main()
         return "ok"
 
+    # Task: builds the feature set from raw demand + weather.
     @task
     def build_features_task() -> str:
         build_features.main()
         return "ok"
 
+    # Task: trains a candidate model, logs + registers a new MLflow version.
     @task
     def retrain_model() -> dict:
         # Trains candidate, logs + registers a new MLflow version.
         return train.run_training()
 
+    # Task: scores the candidate vs production vs seasonal-naive on the same holdout window.
     @task
     def backtest_candidate() -> dict:
         # Candidate vs production vs seasonal-naive on the same holdout window.
         return gate_eval.evaluate()
 
+    # Task: applies the promotion gate to the backtest result.
     @task
     def gate_decision(backtest: dict) -> dict:
         d = decide_promotion(
@@ -90,10 +97,12 @@ def demand_retrain_dag():
         print(d.reason)
         return {"promote": d.promote, "reason": d.reason}
 
+    # Task: routes to the promote or reject branch based on the gate decision.
     @task.branch
     def branch_on_performance(decision: dict) -> str:
         return "promote_model" if decision["promote"] else "log_rejection"
 
+    # Task: aliases the candidate as production and logs the promotion.
     @task
     def promote_model(retrain: dict, backtest: dict, decision: dict) -> None:
         registry.set_production(retrain["version"])
@@ -109,6 +118,7 @@ def demand_retrain_dag():
             }
         )
 
+    # Task: logs the rejection decision without changing production.
     @task
     def log_rejection(retrain: dict, backtest: dict, decision: dict) -> None:
         promotion_log.append_record(
@@ -123,12 +133,14 @@ def demand_retrain_dag():
             }
         )
 
+    # Task: generates the next-24h forecast and writes it to Postgres, regardless of branch taken.
     @task(trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
     def generate_forecast() -> dict:
         df = forecaster.generate()
         forecaster.write_to_postgres(df)
         return {"n_rows": len(df), "regions": int(df["region"].nunique())}
 
+    # Task: prints a run summary of the retrain/gate outcome.
     @task(trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
     def notify(retrain: dict, backtest: dict, decision: dict) -> None:
         status = "PROMOTED" if decision["promote"] else "REJECTED"

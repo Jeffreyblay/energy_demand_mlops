@@ -23,7 +23,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-EIA_API_KEY = os.getenv(EIA_API_KEY, "").strip()
+EIA_API_KEY = os.getenv("EIA_API_KEY", "").strip()
 
 EIA_BASE = "https://api.eia.gov/v2/electricity/rto/region-data/data/"
 OPEN_METEO_BASE = "https://api.open-meteo.com/v1/forecast"
@@ -47,6 +47,7 @@ REGIONS = {
 TIMEOUT = 30
 
 
+# Checks EIA connectivity by pulling the most recent hourly demand for one respondent.
 def check_eia(respondent: str) -> tuple[bool, str]:
     """Pull the most recent hourly demand (type=D) for one respondent."""
     if not EIA_API_KEY:
@@ -88,6 +89,7 @@ def check_eia(respondent: str) -> tuple[bool, str]:
     )
 
 
+# Checks Open-Meteo connectivity by pulling recent hourly temperature for a coordinate.
 def check_open_meteo(lat: float, lon: float) -> tuple[bool, str]:
     """Pull recent hourly 2m temperature for a coordinate."""
     params = {
@@ -118,6 +120,7 @@ def check_open_meteo(lat: float, lon: float) -> tuple[bool, str]:
     return True, f"{len(times)} hrs, latest {times[-1]} = {temps[-1]}°C"
 
 
+# CLI entrypoint: runs the EIA + Open-Meteo smoke test for one or all regions.
 def main() -> int:
     parser = argparse.ArgumentParser(description="GridVision API smoke test")
     parser.add_argument(

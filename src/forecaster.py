@@ -35,6 +35,7 @@ from src.db import get_engine, init_schema
 TIMEOUT = 30
 
 
+# Fetches Open-Meteo's forward-looking hourly temperature forecast for one coordinate.
 def _fetch_forecast_temp(lat: float, lon: float, hours: int) -> pd.DataFrame:
     """Hourly temperature FORECAST (not archive), UTC, for the next `hours` hours."""
     params = {
@@ -57,6 +58,7 @@ def _fetch_forecast_temp(lat: float, lon: float, hours: int) -> pd.DataFrame:
     return df[(df["ts"] > now) & (df["ts"] <= now + pd.Timedelta(hours=hours))]
 
 
+# Builds the next FORECAST_HORIZON_HOURS feature rows for one region from history + forecast weather.
 def _build_future_rows(region: str, history: pd.DataFrame) -> pd.DataFrame:
     """Feature rows for the next FORECAST_HORIZON_HOURS hours for one region."""
     meta = REGIONS[region]
@@ -92,6 +94,7 @@ def _build_future_rows(region: str, history: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+# Generates the next-24h P10/P50/P90 forecast for every region using the production model.
 def generate() -> pd.DataFrame:
     """Forecast the next FORECAST_HORIZON_HOURS hours for every region."""
     if not FEATURES_PARQUET.exists():
@@ -129,6 +132,7 @@ def generate() -> pd.DataFrame:
     return out
 
 
+# Upserts the forecast into Postgres and refreshes each region's latest summary snapshot.
 def write_to_postgres(df: pd.DataFrame) -> None:
     """Upsert into `forecast`, then refresh the per-region `region_summary`."""
     init_schema()

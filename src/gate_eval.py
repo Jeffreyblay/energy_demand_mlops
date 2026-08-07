@@ -22,10 +22,12 @@ from src.config import FEATURE_COLS, FEATURES_PARQUET, TARGET
 from src.train import MODEL_PATH, time_split
 
 
+# Computes MAPE as a percentage given true and predicted values.
 def _mape(y_true, y_pred) -> float:
     return float(mean_absolute_percentage_error(y_true, y_pred) * 100)
 
 
+# Computes candidate/baseline/production MAPE on the same holdout window, for the promotion gate.
 def evaluate() -> dict:
     df = pd.read_parquet(FEATURES_PARQUET)
     _, test = time_split(df)
