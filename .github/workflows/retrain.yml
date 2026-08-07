@@ -1,0 +1,40 @@
+name: Daily retrain
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # 6am UTC daily, after prior day's EIA data finalizes
+  workflow_dispatch: {}
+
+permissions:
+  contents: write   # needed to commit a promoted model back to the repo
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pipeline
+        env:
+          EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+          POSTGRES_DSN: ${{ secrets.POSTGRES_DSN }}
+        run: python scripts/run_pipeline.py
+
+      - name: Commit promoted model (if any)
+        run: |
+          if [ -n "$(git status --porcelain models/production)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add models/production
+            git commit -m "chore: promote model $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            git push
+          else
+            echo "No production model change — nothing to commit."
+          fi

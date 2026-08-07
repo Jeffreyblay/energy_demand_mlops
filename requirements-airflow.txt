@@ -1,0 +1,15 @@
+# Extra deps layered onto the apache/airflow base image (see Dockerfile).
+# NOTE: mlflow-SKINNY (client only) — full mlflow needs Flask>=3 which conflicts
+# with Airflow 2.10's Flask<2.3. The MLflow *server* runs as its own service.
+mlflow-skinny==3.14.0
+lightgbm==4.6.0
+scikit-learn>=1.4,<1.7
+holidays>=0.40
+# >=2.2 required: src/train.py's groupby(...).apply(..., include_groups=False)
+# uses a kwarg that doesn't exist before pandas 2.2. Matches local gridMlops
+# env (2.3.3, pinned there by the MLflow install).
+pandas>=2.2,<2.4
+numpy>=1.26,<3
+pyarrow>=14
+requests>=2.31
+python-dotenv>=1.0

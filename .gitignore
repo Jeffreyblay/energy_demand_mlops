@@ -1,0 +1,34 @@
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Environments
+.venv/
+venv/
+env/
+
+# Data & artifacts (kept out of git until we decide otherwise)
+data/
+mlruns/
+mlartifacts/
+mlflow.db
+*.parquet
+
+# Docker stack state (Phase 4)
+mlflow-data/
+logs/
+
+# Node / dashboard
+node_modules/
+dashboard/dist/
+
+# OS / editor
+.DS_Store
+.vscode/
+.claude/

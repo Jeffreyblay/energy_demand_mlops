@@ -1,0 +1,424 @@
+/* GridVision dashboard — tokens from the dataviz skill's reference palette
+   (references/palette.md): sequential blue for magnitude, status green for
+   the live indicator, text tokens never carry data color. */
+.app-shell {
+  --page-plane: #f9f9f7;
+  --surface: #fcfcfb;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --border: rgba(11, 11, 11, 0.1);
+  --accent: #2a78d6;
+  --accent-dark: #184f95;
+  --good: #0ca30c;
+
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  background: var(--page-plane);
+  color: var(--text-primary);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  .app-shell {
+    --page-plane: #0d0d0d;
+    --surface: #1a1a19;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --border: rgba(255, 255, 255, 0.1);
+    --accent: #3987e5;
+    --accent-dark: #86b6ef;
+    --good: #0ca30c;
+  }
+}
+
+/* ---------- header ---------- */
+.app-header {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 14px 24px;
+  background: #0b1220;
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--good);
+  box-shadow: 0 0 0 3px rgba(12, 163, 12, 0.25);
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.tagline {
+  color: #94a3b8;
+  font-size: 0.82rem;
+}
+
+/* ---------- layout (static — plain flexbox, no drag-resize) ---------- */
+.app-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* min-width:0 is load-bearing here: flex items default to min-width:auto,
+   so a child with large intrinsic content (the map canvas) can force the
+   whole row wider than the viewport instead of shrinking to fit. */
+.app-main > :first-child {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.sidebar {
+  width: 340px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  padding: 20px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.empty-state {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  padding-top: 8px;
+}
+
+.sidebar-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.region-swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+
+.region-code {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.sidebar-heading h2 {
+  margin: 4px 0 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+/* ---------- stat tiles (dataviz skill: label / value / delta contract) ---------- */
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.stat-tile {
+  background: var(--page-plane);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.stat-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.stat-value {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: proportional-nums;
+}
+
+.stat-delta {
+  margin-top: 4px;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.stat-delta.up {
+  color: var(--accent-dark);
+}
+
+.stat-delta.down {
+  color: var(--text-secondary);
+}
+
+.sidebar-footnote {
+  margin-top: 18px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+/* ---------- map overlays ---------- */
+.map-legend {
+  position: absolute;
+  left: 16px;
+  bottom: 24px;
+  background: rgba(252, 252, 251, 0.92);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  color: var(--text-primary);
+  font-size: 0.72rem;
+}
+
+.map-legend-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.map-legend-scale {
+  width: 160px;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, #b7d3f6, #6da7ec, #2a78d6, #184f95, #0d366b);
+}
+
+.map-legend-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  color: var(--text-muted);
+}
+
+.map-error {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  background: #fef2f2;
+  color: #7f1d1d;
+  border: 1px solid #fecaca;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  max-width: 320px;
+}
+
+.gv-deck-tooltip {
+  position: absolute;
+  z-index: 5;
+  background: rgba(15, 23, 42, 0.92);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+/* ---------- forecast chart ---------- */
+.chart-card {
+  margin-top: 18px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.chart-caption {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  line-height: 1.35;
+}
+
+.chart-empty {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  padding: 12px 0;
+}
+
+.chart-tooltip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.76rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+  color: var(--text-secondary);
+}
+
+.chart-tooltip-time {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.chart-tooltip-p50 {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ---------- promotion timeline ---------- */
+.timeline {
+  width: 100%;
+  height: 190px;
+  flex-shrink: 0;
+  min-width: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 14px 24px 16px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.timeline-heading {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.timeline-subhead {
+  text-transform: none;
+  font-weight: 400;
+  letter-spacing: normal;
+  font-size: 0.72rem;
+}
+
+.timeline-empty {
+  padding: 14px 24px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+.timeline-track {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.timeline-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 220px;
+  padding: 0 8px;
+  position: relative;
+}
+
+.timeline-node::before {
+  content: "";
+  position: absolute;
+  top: 11px;
+  left: -50%;
+  width: 100%;
+  height: 2px;
+  background: var(--border);
+}
+
+.timeline-node:first-child::before {
+  display: none;
+}
+
+.timeline-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  border: 3px solid var(--surface);
+  z-index: 1;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.timeline-dot.promote {
+  background: var(--good);
+}
+
+.timeline-dot.reject {
+  background: var(--text-muted);
+}
+
+.timeline-card {
+  text-align: center;
+}
+
+.timeline-date {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.timeline-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin: 2px 0 4px;
+  line-height: 1.3;
+}
+
+.timeline-label.promote {
+  color: var(--good);
+}
+
+.timeline-label.reject {
+  color: var(--text-secondary);
+}
+
+.timeline-detail {
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}

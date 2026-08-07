@@ -1,0 +1,139 @@
+# GridVision — Phase 4 local orchestration stack.
+#
+# Services:
+#   postgres          Airflow's OWN metadata DB (user/db "airflow"). Unrelated
+#                      to the project's Postgres storage below — different
+#                      creds, different purpose, never touched by src/db.py.
+#   db                 PROJECT data (Phase 5+): regions, forecasts,
+#                      region_summary, promotion_log. What FastAPI reads from.
+#                      Exposed on host :5432 for local `uvicorn`/`psql` access
+#                      during dev (Airflow's own postgres is NOT exposed).
+#   mlflow             Full MLflow server (tracking + registry), HTTP on :5000.
+#                      Backed by its own sqlite file + artifact dir under
+#                      ./mlflow-data (gitignored), NOT the local ./mlflow.db
+#                      used by run_local.py — container paths would break the
+#                      Windows absolute artifact paths in that file anyway.
+#   airflow-init       One-shot: migrate the Airflow DB + create the admin user.
+#   airflow-webserver  UI on :8080 (login admin/admin — change for anything
+#                      beyond local dev).
+#   airflow-scheduler  Runs demand_retrain_dag on its 6am daily schedule.
+#
+# The whole project directory is bind-mounted to /opt/airflow/gridvision so
+# `src/config.py`'s PROJECT_ROOT (parent.parent of src/config.py) resolves the
+# same way it does locally, and dags/demand_retrain_dag.py's `from src import
+# ...` just works via PYTHONPATH.
+
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  environment: &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__FERNET_KEY: ''
+    AIRFLOW__WEBSERVER__SECRET_KEY: 'gridvision-local-dev-secret'
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/gridvision/dags
+    PYTHONPATH: /opt/airflow/gridvision
+    MLFLOW_TRACKING_URI: http://mlflow:5000
+    EIA_API_KEY: ${EIA_API_KEY}
+    # Overrides the .env default (localhost:5432, for host-side tools) to the
+    # Compose DNS name of the PROJECT db service (not Airflow's own postgres).
+    POSTGRES_DSN: postgresql://gridvision:gridvision@db:5432/gridvision
+  volumes:
+    - .:/opt/airflow/gridvision
+    - airflow_logs:/opt/airflow/logs
+  depends_on:
+    postgres:
+      condition: service_healthy
+    db:
+      condition: service_healthy
+    mlflow:
+      condition: service_started
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: gridvision
+      POSTGRES_PASSWORD: gridvision
+      POSTGRES_DB: gridvision
+    ports:
+      - "5432:5432"
+    volumes:
+      - project_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "gridvision"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow
+    ports:
+      - "5000:5000"
+    environment:
+      # MLflow's DNS-rebinding guard only trusts localhost/127.0.0.1/private
+      # IPs by default — the Airflow containers reach this service by its
+      # Compose DNS name ("mlflow"), so it must be allow-listed explicitly.
+      MLFLOW_SERVER_ALLOWED_HOSTS: 'mlflow:*,mlflow,localhost:*,localhost,127.0.0.1:*,127.0.0.1'
+    volumes:
+      - ./mlflow-data:/mlflow
+    command: >
+      mlflow server
+        --backend-store-uri sqlite:////mlflow/mlflow.db
+        --default-artifact-root mlflow-artifacts:/
+        --artifacts-destination /mlflow/artifacts
+        --serve-artifacts
+        --host 0.0.0.0
+        --port 5000
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow users create \
+          --username admin --password admin \
+          --firstname Grid --lastname Vision \
+          --role Admin --email admin@example.com || true
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "8080:8080"
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+volumes:
+  postgres_data:
+  project_db_data:
+  airflow_logs:

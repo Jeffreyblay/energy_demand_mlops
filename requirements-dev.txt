@@ -1,0 +1,5 @@
+# Dev/test deps (smoke test + unit tests).
+# The full pipeline stack lives in requirements.txt.
+requests>=2.31
+python-dotenv>=1.0
+pytest>=8.0

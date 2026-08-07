@@ -1,0 +1,10 @@
+# GridVision — MLflow tracking/registry server (full mlflow, not skinny).
+# Kept as its own image/service so Airflow's Flask<2.3 pin never has to meet
+# MLflow 3.x's Flask>=3 requirement. Version pinned to match the local dev
+# install (see requirements.txt) so registered-model behavior is identical.
+FROM python:3.12-slim
+
+RUN pip install --no-cache-dir mlflow==3.14.0
+
+WORKDIR /mlflow
+EXPOSE 5000

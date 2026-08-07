@@ -1,0 +1,12 @@
+.git/
+.claude/
+data/
+mlruns/
+mlartifacts/
+mlflow-data/
+mlflow.db
+.pytest_cache/
+__pycache__/
+*.pyc
+diagram/
+.env

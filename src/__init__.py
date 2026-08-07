@@ -1,0 +1,1 @@
+"""GridVision — energy demand forecasting MLOps pipeline (src package)."""
